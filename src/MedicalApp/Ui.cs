@@ -13,6 +13,20 @@ internal static class ConsoleUi
         Console.WriteLine(new string('=', 56));
     }
 
+    public static bool Save(MedicalDbContext db)
+    {
+        try
+        {
+            db.SaveChanges();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Spremanje nije uspjelo: " + ex.Message);
+            return false;
+        }
+    }
+
     public static string ReadRequired(string label)
     {
         while (true)
@@ -48,7 +62,11 @@ internal static class ConsoleUi
         while (true)
         {
             Console.Write($"{label}: ");
-            if (decimal.TryParse(Console.ReadLine(), out var n))
+            var raw = Console.ReadLine();
+            if (decimal.TryParse(raw, System.Globalization.NumberStyles.Number,
+                    System.Globalization.CultureInfo.CurrentCulture, out var n) ||
+                decimal.TryParse(raw, System.Globalization.NumberStyles.Number,
+                    System.Globalization.CultureInfo.InvariantCulture, out n))
                 return n;
             Console.WriteLine("Unesite broj.");
         }
@@ -174,8 +192,7 @@ internal static class Menus
                     var del = db.Patients.Find(delId);
                     if (del is null) { Console.WriteLine("Nije pronađen."); break; }
                     db.Patients.Remove(del);
-                    db.SaveChanges();
-                    Console.WriteLine("Obrisan.");
+                    if (ConsoleUi.Save(db)) Console.WriteLine("Obrisan.");
                     break;
             }
         }
@@ -215,8 +232,7 @@ internal static class Menus
                         StartedOn = ConsoleUi.ReadDate("Početak"),
                         EndedOn = ConsoleUi.ReadOptionalDate("Kraj")
                     });
-                    db.SaveChanges();
-                    Console.WriteLine("Spremljeno.");
+                    if (ConsoleUi.Save(db)) Console.WriteLine("Spremljeno.");
                     break;
                 case 3:
                     var iid = ConsoleUi.ReadInt("Id bolesti");
@@ -224,20 +240,19 @@ internal static class Menus
                     if (ill is null) { Console.WriteLine("Nije pronađena."); break; }
                     var d = ConsoleUi.ReadOptional("Nova dijagnoza");
                     if (d is not null) ill.Diagnosis = d;
-                    ill.EndedOn = ConsoleUi.ReadOptionalDate("Kraj");
+                    var ended = ConsoleUi.ReadOptionalDate("Kraj (Enter = bez promjene)");
+                    if (ended is not null) ill.EndedOn = ended;
                     Console.WriteLine($"ChangeTracker prije SaveChanges: {db.ChangeTracker.Find(ill)?.State}");
                     db.ChangeTracker.DetectChanges();
                     Console.WriteLine($"Stanje: {db.ChangeTracker.Find(ill)?.State}, stupci: {string.Join(",", db.ChangeTracker.Find(ill)?.ModifiedColumns ?? [])}");
-                    db.SaveChanges();
-                    Console.WriteLine("Ažurirano.");
+                    if (ConsoleUi.Save(db)) Console.WriteLine("Ažurirano.");
                     break;
                 case 4:
                     var did = ConsoleUi.ReadInt("Id");
                     var del = db.Illnesses.Find(did);
                     if (del is null) break;
                     db.Illnesses.Remove(del);
-                    db.SaveChanges();
-                    Console.WriteLine("Obrisano.");
+                    if (ConsoleUi.Save(db)) Console.WriteLine("Obrisano.");
                     break;
             }
         }
@@ -271,8 +286,7 @@ internal static class Menus
                         Frequency = ConsoleUi.ReadRequired("Učestalost"),
                         IsCurrent = ConsoleUi.Confirm("Aktivan lijek") ? 1 : 0
                     });
-                    db.SaveChanges();
-                    Console.WriteLine("Spremljeno.");
+                    if (ConsoleUi.Save(db)) Console.WriteLine("Spremljeno.");
                     break;
                 case 3:
                     var mid = ConsoleUi.ReadInt("Id lijeka");
@@ -282,15 +296,13 @@ internal static class Menus
                     if (freq is not null) med.Frequency = freq;
                     if (ConsoleUi.Confirm("Promijeni aktivnost"))
                         med.IsCurrent = med.IsCurrent == 1 ? 0 : 1;
-                    db.SaveChanges();
-                    Console.WriteLine("Ažurirano.");
+                    if (ConsoleUi.Save(db)) Console.WriteLine("Ažurirano.");
                     break;
                 case 4:
                     var del = db.Medications.Find(ConsoleUi.ReadInt("Id"));
                     if (del is null) break;
                     db.Medications.Remove(del);
-                    db.SaveChanges();
-                    Console.WriteLine("Obrisano.");
+                    if (ConsoleUi.Save(db)) Console.WriteLine("Obrisano.");
                     break;
             }
         }
@@ -330,22 +342,19 @@ internal static class Menus
                         ScheduledAt = ConsoleUi.ReadDateTimeOffset("Termin"),
                         Notes = ConsoleUi.ReadOptional("Napomena")
                     });
-                    db.SaveChanges();
-                    Console.WriteLine("Zakazano.");
+                    if (ConsoleUi.Save(db)) Console.WriteLine("Zakazano.");
                     break;
                 case 3:
                     var ex = db.Examinations.Find(ConsoleUi.ReadInt("Id pregleda"));
                     if (ex is null) break;
                     ex.ScheduledAt = ConsoleUi.ReadDateTimeOffset("Novi termin");
-                    db.SaveChanges();
-                    Console.WriteLine("Ažurirano.");
+                    if (ConsoleUi.Save(db)) Console.WriteLine("Ažurirano.");
                     break;
                 case 4:
                     var del = db.Examinations.Find(ConsoleUi.ReadInt("Id"));
                     if (del is null) break;
                     db.Examinations.Remove(del);
-                    db.SaveChanges();
-                    Console.WriteLine("Otkazano.");
+                    if (ConsoleUi.Save(db)) Console.WriteLine("Otkazano.");
                     break;
             }
         }
@@ -370,23 +379,20 @@ internal static class Menus
                     break;
                 case 2:
                     db.Addresses.Add(ReadAddress());
-                    db.SaveChanges();
-                    Console.WriteLine("Spremljeno.");
+                    if (ConsoleUi.Save(db)) Console.WriteLine("Spremljeno.");
                     break;
                 case 3:
                     var adr = db.Addresses.Find(ConsoleUi.ReadInt("Id"));
                     if (adr is null) break;
                     var street = ConsoleUi.ReadOptional("Nova ulica");
                     if (street is not null) adr.Street = street;
-                    db.SaveChanges();
-                    Console.WriteLine("Ažurirano.");
+                    if (ConsoleUi.Save(db)) Console.WriteLine("Ažurirano.");
                     break;
                 case 4:
                     var del = db.Addresses.Find(ConsoleUi.ReadInt("Id"));
                     if (del is null) break;
                     db.Addresses.Remove(del);
-                    db.SaveChanges();
-                    Console.WriteLine("Obrisano.");
+                    if (ConsoleUi.Save(db)) Console.WriteLine("Obrisano.");
                     break;
             }
         }
@@ -489,7 +495,7 @@ internal static class Menus
             db.Doctors.Add(new Doctor { FirstName = "Petar", LastName = "Jurić", Specialization = "Dermatologija" });
             db.Doctors.Add(new Doctor { FirstName = "Maja", LastName = "Perić", Specialization = "Dentalna medicina" });
             db.Doctors.Add(new Doctor { FirstName = "Luka", LastName = "Šimić", Specialization = "Neurologija" });
-            db.SaveChanges();
+            if (!ConsoleUi.Save(db)) return;
             Console.WriteLine("Demo liječnici uneseni.");
             return;
         }
@@ -505,7 +511,7 @@ internal static class Menus
                 Specialization = ConsoleUi.ReadRequired("Specijalizacija")
             });
         }
-        db.SaveChanges();
+        if (!ConsoleUi.Save(db)) return;
         Console.WriteLine("Liječnici spremljeni. Daljnji unos nije moguć kroz aplikaciju.");
     }
 
@@ -521,7 +527,7 @@ internal static class Menus
         var perm = new Address { Street = "Riva 8", City = "Split", PostalCode = "21000" };
         db.Addresses.Add(home);
         db.Addresses.Add(perm);
-        db.SaveChanges();
+        if (!ConsoleUi.Save(db)) return;
 
         var patient = new Patient
         {
@@ -535,7 +541,7 @@ internal static class Menus
             PermanentAddressId = perm.Id
         };
         db.Patients.Add(patient);
-        db.SaveChanges();
+        if (!ConsoleUi.Save(db)) return;
 
         var illness = new Illness
         {
@@ -545,7 +551,7 @@ internal static class Menus
             StartedOn = new DateTime(2024, 1, 10)
         };
         db.Illnesses.Add(illness);
-        db.SaveChanges();
+        if (!ConsoleUi.Save(db)) return;
 
         db.Medications.Add(new Medication
         {
@@ -569,7 +575,7 @@ internal static class Menus
                 Notes = "Kontrolni EKG"
             });
         }
-        db.SaveChanges();
+        if (!ConsoleUi.Save(db)) return;
         Console.WriteLine("Demo pacijent, bolest, lijek i pregled uneseni.");
     }
 
@@ -578,7 +584,7 @@ internal static class Menus
         Console.WriteLine("Adresa boravišta:");
         var res = ReadAddress();
         db.Addresses.Add(res);
-        db.SaveChanges();
+        if (!ConsoleUi.Save(db)) return;
 
         int permId;
         if (ConsoleUi.Confirm("Prebivalište je isto kao boravište"))
@@ -590,7 +596,7 @@ internal static class Menus
             Console.WriteLine("Adresa prebivališta:");
             var perm = ReadAddress();
             db.Addresses.Add(perm);
-            db.SaveChanges();
+            if (!ConsoleUi.Save(db)) return;
             permId = perm.Id;
         }
 
@@ -605,8 +611,7 @@ internal static class Menus
             ResidenceAddressId = res.Id,
             PermanentAddressId = permId
         });
-        db.SaveChanges();
-        Console.WriteLine("Pacijent spremljen.");
+        if (ConsoleUi.Save(db)) Console.WriteLine("Pacijent spremljen.");
     }
 
     private static void UpdatePatient(MedicalDbContext db)
@@ -626,8 +631,7 @@ internal static class Menus
         db.ChangeTracker.DetectChanges();
         var entry = db.ChangeTracker.Find(p);
         Console.WriteLine($"ChangeTracker: {entry?.State}  [{string.Join(", ", entry?.ModifiedColumns ?? [])}]");
-        db.SaveChanges();
-        Console.WriteLine("Ažurirano (UPDATE je generiran samo za izmijenjene stupce).");
+        if (ConsoleUi.Save(db)) Console.WriteLine("Ažurirano (UPDATE je generiran samo za izmijenjene stupce).");
     }
 
     private static Address ReadAddress() => new()

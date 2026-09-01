@@ -57,9 +57,22 @@ public sealed class MigrationRunner
         if (!generated.HasChanges)
             return;
 
-        using var cmd = new NpgsqlCommand(generated.UpSql, _context.Connection);
-        cmd.ExecuteNonQuery();
-        InsertHistory(generated);
+        using var tx = _context.Connection.BeginTransaction();
+        try
+        {
+            using (var cmd = new NpgsqlCommand(generated.UpSql, _context.Connection))
+            {
+                cmd.Transaction = tx;
+                cmd.ExecuteNonQuery();
+            }
+            InsertHistory(generated, tx);
+            tx.Commit();
+        }
+        catch
+        {
+            tx.Rollback();
+            throw;
+        }
     }
 
     public void RollbackLast()
@@ -102,11 +115,13 @@ public sealed class MigrationRunner
         return list;
     }
 
-    private void InsertHistory(GeneratedMigration migration)
+    private void InsertHistory(GeneratedMigration migration, NpgsqlTransaction? tx = null)
     {
         using var cmd = new NpgsqlCommand(
             $"INSERT INTO {Q(HistoryTable)} (name, up_sql, down_sql) VALUES (@n, @u, @d);",
             _context.Connection);
+        if (tx is not null)
+            cmd.Transaction = tx;
         cmd.Parameters.AddWithValue("@n", migration.Name);
         cmd.Parameters.AddWithValue("@u", migration.UpSql);
         cmd.Parameters.AddWithValue("@d", migration.DownSql);

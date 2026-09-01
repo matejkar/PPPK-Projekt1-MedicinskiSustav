@@ -14,7 +14,7 @@ public sealed class DbSet<T> where T : class, new()
     private readonly List<string> _orderBy = new();
     private readonly List<string> _includes = new();
 
-    internal DbSet(MiniOrmContext context) => _context = context;
+    public DbSet(MiniOrmContext context) => _context = context;
 
     private DbSet(MiniOrmContext context, List<LambdaExpression> filters, List<string> orderBy, List<string> includes)
     {
@@ -188,7 +188,13 @@ public abstract class MiniOrmContext : IDisposable
         using var tx = Connection.BeginTransaction();
         try
         {
-            foreach (var entry in ChangeTracker.Entries.Where(e => e.State == EntityState.Added))
+            int TypeOrder(EntityEntry e)
+            {
+                var i = EntityTypes.ToList().IndexOf(e.Metadata.ClrType);
+                return i < 0 ? int.MaxValue : i;
+            }
+
+            foreach (var entry in ChangeTracker.Entries.Where(e => e.State == EntityState.Added).OrderBy(TypeOrder))
             {
                 using var cmd = SqlCommandFactory.Insert(Connection, entry);
                 cmd.Transaction = tx;
@@ -206,7 +212,7 @@ public abstract class MiniOrmContext : IDisposable
                 affected += cmd.ExecuteNonQuery();
             }
 
-            foreach (var entry in ChangeTracker.Entries.Where(e => e.State == EntityState.Deleted))
+            foreach (var entry in ChangeTracker.Entries.Where(e => e.State == EntityState.Deleted).OrderByDescending(TypeOrder))
             {
                 using var cmd = SqlCommandFactory.Delete(Connection, entry);
                 cmd.Transaction = tx;

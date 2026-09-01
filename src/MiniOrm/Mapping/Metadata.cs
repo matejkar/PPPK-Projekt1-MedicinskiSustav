@@ -35,6 +35,8 @@ public sealed class ColumnMetadata
         }
 
         var target = Nullable.GetUnderlyingType(Property.PropertyType) ?? Property.PropertyType;
+        if (value is string s && PostgresType.StartsWith("CHAR", StringComparison.OrdinalIgnoreCase))
+            value = s.TrimEnd();
         Property.SetValue(entity, TypeMapper.ConvertToClr(value, target));
     }
 }
