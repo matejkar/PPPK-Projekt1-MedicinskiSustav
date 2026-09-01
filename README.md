@@ -2,7 +2,7 @@
 
 Konzolna .NET 8 aplikacija + **vlastiti ORM (MiniOrm)** + **PostgreSQL u Dockeru**.
 
-Zadatak nije vezan uz Projekt 2. Ovaj projekt pokriva relacijsku bazu, složeni konceptualni model i ORM (uključujući željene ishode: vlastita implementacija).
+Projekt pokriva relacijsku bazu, složeni konceptualni model i ORM
 
 ## Pokretanje
 
